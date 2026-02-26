@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -43,7 +43,7 @@ const addFeeScheduleSchema = z.object({
 
 type AddFeeScheduleErrors = Partial<Record<keyof z.infer<typeof addFeeScheduleSchema>, string>>
 
-export default function FeeSchedulesPage() {
+function FeeSchedulesPageContent() {
   const searchParams = useSearchParams()
   const [addOpen, setAddOpen] = useState(false)
   const [payer, setPayer] = useState("")
@@ -246,5 +246,13 @@ export default function FeeSchedulesPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function FeeSchedulesPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
+      <FeeSchedulesPageContent />
+    </Suspense>
   )
 }
