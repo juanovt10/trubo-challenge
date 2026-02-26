@@ -288,6 +288,11 @@ export default function ProductsPage() {
               <p className="border-t border-border pt-4 text-sm text-muted-foreground">
                 Adding products will be added in the next version.
               </p>
+              <div className="flex justify-end pt-2">
+                <Button type="button" size="sm" onClick={() => setSuccessSummary(null)}>
+                  Close
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

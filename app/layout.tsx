@@ -39,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="overflow-hidden">
       <body className="font-sans antialiased">
         {children}
         <Toaster position="top-right" />

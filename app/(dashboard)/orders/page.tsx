@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { Search, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -15,25 +15,56 @@ import {
 import { MetricCard } from "@/components/metric-card"
 import { OrdersTable } from "@/components/orders-table"
 import { orders } from "@/lib/mock-data"
+import type { OrderStatus } from "@/lib/mock-data"
+
+const REJECTED_ORDERS_KEY = "medsupply-rejected-orders"
+
+function getRejectedOrders(): Record<string, { rejectionReason: string }> {
+  if (typeof window === "undefined") return {}
+  try {
+    const raw = sessionStorage.getItem(REJECTED_ORDERS_KEY)
+    const data = raw ? (JSON.parse(raw) as Record<string, { rejectionReason: string }>) : {}
+    return data && typeof data === "object" ? data : {}
+  } catch {
+    return {}
+  }
+}
 
 export default function OrdersPage() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [payerFilter, setPayerFilter] = useState("all")
+  const [rejectedMap, setRejectedMap] = useState<Record<string, { rejectionReason: string }>>({})
+
+  useEffect(() => {
+    setRejectedMap(getRejectedOrders())
+  }, [])
+
+  const displayOrders = useMemo(
+    () =>
+      orders.map((o) => ({
+        ...o,
+        status: (rejectedMap[o.id] ? "Action Required" : o.status) as OrderStatus,
+      })),
+    [rejectedMap]
+  )
 
   const metrics = useMemo(
     () => ({
-      open: orders.filter(
-        (o) => o.status === "Draft" || o.status === "Needs Approval"
+      open: displayOrders.filter(
+        (o) =>
+          o.status === "Draft" ||
+          o.status === "Needs Approval" ||
+          o.status === "Action Required"
       ).length,
-      needsApproval: orders.filter((o) => o.status === "Needs Approval").length,
-      docsReady: orders.filter((o) => o.status === "Docs Ready").length,
+      needsApproval: displayOrders.filter((o) => o.status === "Needs Approval").length,
+      docsReady: displayOrders.filter((o) => o.status === "Docs Ready").length,
     }),
-    []
+    [displayOrders]
   )
 
   const filtered = useMemo(() => {
-    return orders.filter((o) => {
+    return displayOrders.filter((o) => {
       const matchesSearch =
         !search ||
         o.patient.toLowerCase().includes(search.toLowerCase()) ||
@@ -43,7 +74,7 @@ export default function OrdersPage() {
       const matchesPayer = payerFilter === "all" || o.payer === payerFilter
       return matchesSearch && matchesStatus && matchesPayer
     })
-  }, [search, statusFilter, payerFilter])
+  }, [displayOrders, search, statusFilter, payerFilter])
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,6 +117,7 @@ export default function OrdersPage() {
             <SelectItem value="Needs Approval">Needs Approval</SelectItem>
             <SelectItem value="Approved">Approved</SelectItem>
             <SelectItem value="Docs Ready">Docs Ready</SelectItem>
+            <SelectItem value="Action Required">Action Required</SelectItem>
           </SelectContent>
         </Select>
         <Select value={payerFilter} onValueChange={setPayerFilter}>

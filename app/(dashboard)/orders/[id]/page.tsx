@@ -3,10 +3,11 @@
 import { useState, use, useEffect } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { FileText, Send } from "lucide-react"
+import { FileText, Send, Download } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
@@ -16,12 +17,52 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { OrderStatusBadge } from "@/components/order-status-badge"
-import { orders } from "@/lib/mock-data"
-import type { OrderStatus, Note } from "@/lib/mock-data"
+import { orders, products, mockOrderAttachments } from "@/lib/mock-data"
+import type { OrderStatus, Note, OrderAttachmentDisplay } from "@/lib/mock-data"
+import type { LineItem } from "@/lib/mock-data"
 
 const DOCS_READY_IDS_KEY = "medsupply-docs-ready-order-ids"
+const ORDER_ATTACHMENTS_KEY = "medsupply-order-attachments"
+const REJECTED_ORDERS_KEY = "medsupply-rejected-orders"
+type RejectedMap = Record<string, { rejectionReason: string }>
+
+function getRejectedOrders(): RejectedMap {
+  if (typeof window === "undefined") return {}
+  try {
+    const raw = sessionStorage.getItem(REJECTED_ORDERS_KEY)
+    const data = raw ? (JSON.parse(raw) as RejectedMap) : {}
+    return data && typeof data === "object" ? data : {}
+  } catch {
+    return {}
+  }
+}
+
+function setOrderRejected(orderId: string, rejectionReason: string) {
+  if (typeof window === "undefined") return
+  try {
+    const data = getRejectedOrders()
+    data[orderId] = { rejectionReason }
+    sessionStorage.setItem(REJECTED_ORDERS_KEY, JSON.stringify(data))
+  } catch {
+    // ignore
+  }
+}
+
+function getItemsRequiringApproval(lineItems: LineItem[]): LineItem[] {
+  return lineItems.filter((li) =>
+    products.some(
+      (p) => (p.name === li.product || p.hcpcs === li.hcpcs) && p.requiresApproval
+    )
+  )
+}
 
 function getDocsReadyOrderIds(): string[] {
   if (typeof window === "undefined") return []
@@ -47,6 +88,22 @@ function setOrderDocsReady(orderId: string) {
   }
 }
 
+function getOrderAttachments(orderId: string): OrderAttachmentDisplay[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = sessionStorage.getItem(ORDER_ATTACHMENTS_KEY)
+    const data = raw ? (JSON.parse(raw) as Record<string, OrderAttachmentDisplay[]>) : {}
+    const stored = Array.isArray(data[orderId]) ? data[orderId] : []
+    if (stored.length > 0) return stored
+  } catch {
+    // fall through to mock
+  }
+  const mockKey = Object.keys(mockOrderAttachments).find(
+    (k) => k.toLowerCase() === orderId.toLowerCase()
+  )
+  return mockKey ? mockOrderAttachments[mockKey] : []
+}
+
 export default function OrderDetailPage({
   params,
 }: {
@@ -56,15 +113,28 @@ export default function OrderDetailPage({
   const order = orders.find((o) => o.id.toLowerCase() === id.toLowerCase())
   const [status, setStatus] = useState<OrderStatus>(order?.status ?? "Draft")
   const [notes, setNotes] = useState<Note[]>(order?.notes ?? [])
+  const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState("")
+  const [rejectedReasonDisplay, setRejectedReasonDisplay] = useState<string | null>(null)
+  const [attachments, setAttachments] = useState<OrderAttachmentDisplay[]>([])
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (getDocsReadyOrderIds().includes(id)) setStatus("Docs Ready")
+      const rejected = getRejectedOrders()[id]
+      if (rejected) {
+        setStatus("Action Required")
+        setRejectedReasonDisplay(rejected.rejectionReason)
+      } else if (order?.status === "Action Required" && order.rejectionReason) {
+        setRejectedReasonDisplay(order.rejectionReason)
+      }
+      setAttachments(getOrderAttachments(order?.id ?? id))
     }, 0)
     return () => clearTimeout(timer)
-  }, [id])
+  }, [id, order])
 
   const [newNote, setNewNote] = useState("")
+  const itemsRequiringApproval = order ? getItemsRequiringApproval(order.lineItems) : []
 
   if (!order) {
     return (
@@ -83,6 +153,27 @@ export default function OrderDetailPage({
     setOrderDocsReady(id)
     setStatus("Docs Ready")
     toast.success("Docs generated")
+  }
+
+  function handleRejectSubmit() {
+    const reason = rejectionReason.trim()
+    if (!reason) {
+      toast.error("Please provide a reason for rejection")
+      return
+    }
+    setOrderRejected(id, reason)
+    setStatus("Action Required")
+    setRejectedReasonDisplay(reason)
+    const note: Note = {
+      id: `N-reject-${Date.now()}`,
+      author: "Manager",
+      text: `Order rejected: ${reason}`,
+      timestamp: new Date().toISOString(),
+    }
+    setNotes((prev) => [...prev, note])
+    setRejectionDialogOpen(false)
+    setRejectionReason("")
+    toast.success("Order rejected — action required")
   }
 
   function handleAddNote() {
@@ -136,17 +227,22 @@ export default function OrderDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {status === "Draft" && (
+          {(status === "Draft" || status === "Action Required") && (
             <Button size="sm" asChild>
               <Link href={`/orders/new?continue=${encodeURIComponent(order.id)}`}>
-                Continue order
+                {status === "Draft" ? "Continue order" : "Edit order"}
               </Link>
             </Button>
           )}
           {status === "Needs Approval" && (
-            <Button size="sm" onClick={handleApprove}>
-              Approve Order
-            </Button>
+            <>
+              <Button size="sm" variant="outline" onClick={() => setRejectionDialogOpen(true)}>
+                Reject
+              </Button>
+              <Button size="sm" onClick={handleApprove}>
+                Approve Order
+              </Button>
+            </>
           )}
           {status === "Approved" && (
             <Button size="sm" variant="outline" onClick={handleGenerateDocs}>
@@ -161,6 +257,7 @@ export default function OrderDetailPage({
         <TabsList className="bg-muted">
           <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
           <TabsTrigger value="line-items" className="text-xs">Line Items</TabsTrigger>
+          <TabsTrigger value="attachments" className="text-xs">Attachments</TabsTrigger>
           {status === "Docs Ready" && (
             <TabsTrigger value="documents" className="text-xs">Documents</TabsTrigger>
           )}
@@ -168,6 +265,16 @@ export default function OrderDetailPage({
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
+          {status === "Action Required" && rejectedReasonDisplay && (
+            <Card className="mb-4 border-destructive/50 bg-destructive/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-destructive">Rejection reason</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-foreground">{rejectedReasonDisplay}</p>
+              </CardContent>
+            </Card>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Card className="border border-border bg-card shadow-none">
               <CardHeader className="pb-3">
@@ -300,6 +407,37 @@ export default function OrderDetailPage({
           )}
         </TabsContent>
 
+        <TabsContent value="attachments" className="mt-4">
+          <Card className="border border-border bg-card shadow-none">
+            <CardContent className="p-5">
+              {attachments.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">No attachments</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {attachments.map((att) => (
+                    <li
+                      key={att.id}
+                      className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2"
+                    >
+                      <FileText className="size-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{att.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {att.type.includes("pdf") ? "PDF" : "Word"} · {(att.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                      <Button variant="outline" size="sm" className="shrink-0" disabled>
+                        <Download className="size-3.5" />
+                        <span className="sr-only">Download</span>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {status === "Docs Ready" && (
           <TabsContent value="documents" className="mt-4">
             <div className="grid grid-cols-3 gap-4">
@@ -372,6 +510,47 @@ export default function OrderDetailPage({
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={rejectionDialogOpen} onOpenChange={setRejectionDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Reject order</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The following item(s) require approval. State why you are rejecting this order.
+          </p>
+          <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2">
+            <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
+              Item(s) requiring approval
+            </p>
+            <ul className="space-y-1 text-sm text-foreground">
+              {itemsRequiringApproval.map((li) => (
+                <li key={li.id} className="font-medium">
+                  {li.product} ({li.hcpcs}) × {li.qty}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="grid gap-2">
+            <Label className="text-xs text-muted-foreground">Reason for rejection</Label>
+            <textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Explain why this order is being rejected..."
+              rows={4}
+              className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => { setRejectionDialogOpen(false); setRejectionReason(""); }}>
+              Cancel
+            </Button>
+            <Button type="button" size="sm" variant="destructive" onClick={handleRejectSubmit}>
+              Submit rejection
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

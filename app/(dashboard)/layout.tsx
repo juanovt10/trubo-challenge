@@ -13,8 +13,8 @@ export default function DashboardLayout({
       <AppSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppHeader />
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-8 py-6">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="mx-auto min-h-0 max-w-6xl px-8 py-4">
             {children}
           </div>
         </main>

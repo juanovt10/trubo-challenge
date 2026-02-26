@@ -1,4 +1,4 @@
-export type OrderStatus = "Draft" | "Needs Approval" | "Approved" | "Docs Ready"
+export type OrderStatus = "Draft" | "Needs Approval" | "Approved" | "Docs Ready" | "Action Required"
 
 export interface Order {
   id: string
@@ -19,6 +19,8 @@ export interface Order {
   groupNumber: string
   lineItems: LineItem[]
   notes: Note[]
+  /** Present when status is "Action Required" (e.g. from mock or after manager rejection). */
+  rejectionReason?: string
 }
 
 export interface LineItem {
@@ -56,6 +58,40 @@ export interface FeeSchedule {
   hcpcs: string
   allowedAmount: number
   patientSharePercent: number
+}
+
+/** Attachment display info (no base64 content). Used for mock data and order detail list. */
+export interface OrderAttachmentDisplay {
+  id: string
+  name: string
+  type: string
+  size: number
+}
+
+/** Mock attachments per order id for order detail Attachments tab. */
+export const mockOrderAttachments: Record<string, OrderAttachmentDisplay[]> = {
+  "ORD-1001": [
+    { id: "att-mock-1", name: "CMN-K0823-Chen.pdf", type: "application/pdf", size: 124000 },
+    { id: "att-mock-2", name: "Face-to-face-notes.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size: 42000 },
+  ],
+  "ORD-1002": [
+    { id: "att-mock-3", name: "Prior-auth-BCBS.pdf", type: "application/pdf", size: 89000 },
+  ],
+  "ORD-1003": [
+    { id: "att-mock-4", name: "CMN-K0856-Evans.pdf", type: "application/pdf", size: 156000 },
+    { id: "att-mock-5", name: "Prescription-E2321.pdf", type: "application/pdf", size: 31000 },
+  ],
+  "ORD-1007": [
+    { id: "att-mock-6", name: "Wheelchair-CMN-Davis.pdf", type: "application/pdf", size: 198000 },
+    { id: "att-mock-7", name: "Delivery-instructions.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size: 28000 },
+  ],
+  "ORD-1008": [
+    { id: "att-mock-8", name: "CMN-K0823-Cooper-current.pdf", type: "application/pdf", size: 102000 },
+  ],
+  "ORD-1009": [
+    { id: "att-mock-9", name: "Aetna-prior-auth-request.pdf", type: "application/pdf", size: 76000 },
+    { id: "att-mock-10", name: "Patient-share-verification.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size: 35000 },
+  ],
 }
 
 export const orders: Order[] = [
@@ -232,6 +268,57 @@ export const orders: Order[] = [
       { id: "N-7", author: "Sarah Kim", text: "Full documentation package generated and verified.", timestamp: "2026-02-17T15:30:00Z" },
       { id: "N-8", author: "Amy Lopez", text: "Patient confirmed delivery window. Scheduled for 2/25.", timestamp: "2026-02-18T09:15:00Z" },
     ],
+  },
+  {
+    id: "ORD-1008",
+    patient: "Linda Cooper",
+    payer: "Medicare",
+    status: "Action Required",
+    totalAllowed: 1650.0,
+    margin: 46.2,
+    updated: "2026-02-23",
+    selfPay: false,
+    address: "1500 Spruce Street",
+    city: "Philadelphia",
+    state: "PA",
+    zip: "19102",
+    phone: "(215) 555-0177",
+    dob: "1953-04-11",
+    insuranceId: "MBI-4452019381",
+    groupNumber: "N/A",
+    lineItems: [
+      { id: "LI-15", product: "Power Wheelchair – Group 2", hcpcs: "K0823", qty: 1, cost: 890.0, allowedAmount: 1650.0, patientShare: 330.0, hasMeasurement: true },
+    ],
+    notes: [
+      { id: "N-9", author: "Manager", text: "Order rejected: CMN on file does not support Group 2. Please obtain updated face-to-face documentation.", timestamp: "2026-02-23T11:00:00Z" },
+    ],
+    rejectionReason: "CMN on file does not support Group 2. Please obtain updated face-to-face documentation and resubmit.",
+  },
+  {
+    id: "ORD-1009",
+    patient: "David Miller",
+    payer: "Aetna",
+    status: "Action Required",
+    totalAllowed: 900.0,
+    margin: 38.5,
+    updated: "2026-02-22",
+    selfPay: false,
+    address: "88 Oak Ridge Drive",
+    city: "Atlanta",
+    state: "GA",
+    zip: "30301",
+    phone: "(404) 555-0192",
+    dob: "1962-08-30",
+    insuranceId: "AET-9921847",
+    groupNumber: "GRP-22105",
+    lineItems: [
+      { id: "LI-16", product: "CPAP Machine", hcpcs: "E0601", qty: 1, cost: 380.0, allowedAmount: 900.0, patientShare: 180.0, hasMeasurement: false },
+      { id: "LI-17", product: "CPAP Mask – Full Face", hcpcs: "A7030", qty: 1, cost: 120.0, allowedAmount: 265.0, patientShare: 53.0, hasMeasurement: true },
+    ],
+    notes: [
+      { id: "N-10", author: "Manager", text: "Order rejected: Prior authorization from Aetna required before dispensing. Patient share percentage needs verification.", timestamp: "2026-02-22T14:30:00Z" },
+    ],
+    rejectionReason: "Prior authorization from Aetna required before dispensing. Please verify patient share percentage and attach approval.",
   },
 ]
 

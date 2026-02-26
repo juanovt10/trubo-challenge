@@ -1,12 +1,13 @@
 import { Badge } from "@/components/ui/badge"
 import type { OrderStatus } from "@/lib/mock-data"
-import { Circle, AlertCircle, CheckCircle2, FileCheck2 } from "lucide-react"
+import { Circle, AlertCircle, CheckCircle2, FileCheck2, AlertTriangle } from "lucide-react"
 
-const statusConfig: Record<OrderStatus, { icon: typeof Circle; variant: "secondary" | "outline" }> = {
+const statusConfig: Record<OrderStatus, { icon: typeof Circle; variant: "secondary" | "outline" | "destructive" }> = {
   Draft: { icon: Circle, variant: "secondary" },
   "Needs Approval": { icon: AlertCircle, variant: "outline" },
   Approved: { icon: CheckCircle2, variant: "secondary" },
   "Docs Ready": { icon: FileCheck2, variant: "secondary" },
+  "Action Required": { icon: AlertTriangle, variant: "destructive" },
 }
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {

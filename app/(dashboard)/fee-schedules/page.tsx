@@ -202,7 +202,7 @@ function FeeSchedulesPageContent() {
                 {patientSharePercent != null ? `${patientSharePercent}%` : "—"}
                 {payer && (
                   <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                    {payer === "BCBS" ? "15% for BCBS" : "20% for Medicare & Aetna"}
+                    {payer === "BCBS" ? " for BCBS" : " for Medicare & Aetna"}
                   </span>
                 )}
               </p>
@@ -241,6 +241,11 @@ function FeeSchedulesPageContent() {
               <p className="border-t border-border pt-4 text-sm text-muted-foreground">
                 Adding fee schedules will be added in the next version.
               </p>
+              <div className="flex justify-end pt-2">
+                <Button type="button" size="sm" onClick={() => setSuccessSummary(null)}>
+                  Close
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

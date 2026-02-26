@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { z } from "zod"
-import { Plus, Upload, Trash2, CalendarIcon } from "lucide-react"
+import { Plus, Upload, Trash2, CalendarIcon, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,6 +43,46 @@ import { products, feeSchedules, orders } from "@/lib/mock-data"
 import type { Product, Order } from "@/lib/mock-data"
 
 const PAYERS = ["Medicare", "BCBS", "Aetna"] as const
+const ORDER_ATTACHMENTS_KEY = "medsupply-order-attachments"
+const MAX_FILE_SIZE_BYTES = 4 * 1024 * 1024 // 4MB per file
+const ACCEPTED_TYPES = "application/pdf,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+type StoredAttachment = { id: string; name: string; type: string; size: number; content: string }
+
+function getOrderAttachments(orderId: string): StoredAttachment[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = sessionStorage.getItem(ORDER_ATTACHMENTS_KEY)
+    const data = raw ? (JSON.parse(raw) as Record<string, StoredAttachment[]>) : {}
+    return Array.isArray(data[orderId]) ? data[orderId] : []
+  } catch {
+    return []
+  }
+}
+
+function setOrderAttachments(orderId: string, attachments: StoredAttachment[]) {
+  if (typeof window === "undefined") return
+  try {
+    const raw = sessionStorage.getItem(ORDER_ATTACHMENTS_KEY)
+    const data = raw ? (JSON.parse(raw) as Record<string, StoredAttachment[]>) : {}
+    data[orderId] = attachments
+    sessionStorage.setItem(ORDER_ATTACHMENTS_KEY, JSON.stringify(data))
+  } catch {
+    // ignore
+  }
+}
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      resolve(result.includes(",") ? result.split(",")[1] ?? "" : result)
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
 
 function createOrderSchema(selfPay: boolean) {
   const base = z.object({
@@ -161,6 +201,9 @@ function CreateOrderPageContent() {
     product: string
     hcpcs: string
   } | null>(null)
+  const [attachments, setAttachments] = useState<StoredAttachment[]>([])
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const continueId = searchParams.get("continue")
@@ -200,10 +243,53 @@ function CreateOrderPageContent() {
         }
       })
       setLineItems(items)
+      const stored = getOrderAttachments(continueId)
+      setAttachments(stored)
       setHasPrefilled(true)
     }, 0)
     return () => clearTimeout(timer)
   }, [searchParams, hasPrefilled])
+
+  async function processFiles(files: FileList | null) {
+    if (!files?.length) return
+    for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        toast.error(`File too large: ${file.name} (max 4MB)`)
+        continue
+      }
+      const ext = file.name.split(".").pop()?.toLowerCase()
+      if (!["pdf", "doc", "docx"].includes(ext ?? "")) {
+        toast.error(`${file.name}: PDF or Word only`)
+        continue
+      }
+      try {
+        const content = await readFileAsBase64(file)
+        setAttachments((prev) => [
+          ...prev,
+          { id: `att-${Date.now()}-${prev.length}`, name: file.name, type: file.type, size: file.size, content },
+        ])
+      } catch {
+        toast.error(`Failed to read ${file.name}`)
+      }
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    processFiles(e.target.files)
+    e.target.value = ""
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    processFiles(e.dataTransfer.files)
+    e.dataTransfer.clearData()
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((prev) => prev.filter((a) => a.id !== id))
+  }
 
   function clearError(field: string) {
     setErrors((prev) => {
@@ -343,6 +429,8 @@ function CreateOrderPageContent() {
       notes: [],
     }
 
+    const continueId = searchParams.get("continue")
+    if (continueId && attachments.length > 0) setOrderAttachments(continueId, attachments)
     setSummaryOrder(newOrder)
   }
 
@@ -388,6 +476,8 @@ function CreateOrderPageContent() {
       notes: [],
     }
 
+    const continueId = searchParams.get("continue")
+    if (continueId && attachments.length > 0) setOrderAttachments(continueId, attachments)
     setSummaryOrder(draftOrder)
   }
 
@@ -456,11 +546,11 @@ function CreateOrderPageContent() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold text-foreground">Create Order</h1>
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-4">
+      <h1 className="shrink-0 text-xl font-semibold text-foreground">Create Order</h1>
 
       {/* Patient Information */}
-      <Card className="border border-border bg-card shadow-none">
+      <Card className="border border-border bg-card py-4 shadow-none">
         <CardHeader className="pb-4">
           <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Patient Information
@@ -530,7 +620,7 @@ function CreateOrderPageContent() {
       </Card>
 
       {/* Insurance */}
-      <Card className="border border-border bg-card shadow-none">
+      <Card className="border border-border bg-card py-4 shadow-none">
         <CardHeader className="pb-4">
           <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Insurance
@@ -606,7 +696,7 @@ function CreateOrderPageContent() {
       </Card>
 
       {/* Shipping */}
-      <Card className="border border-border bg-card shadow-none">
+      <Card className="border border-border bg-card py-4 shadow-none">
         <CardHeader className="pb-4">
           <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Shipping
@@ -659,11 +749,11 @@ function CreateOrderPageContent() {
       {/* Line Items */}
       <Card
         className={cn(
-          "border bg-card shadow-none",
+          "border bg-card py-4 shadow-none",
           errors.lineItems ? "border-red-500" : "border-border"
         )}
       >
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Line Items
           </CardTitle>
@@ -675,7 +765,7 @@ function CreateOrderPageContent() {
         <CardContent>
           {lineItems.length === 0 ? (
             <>
-              <p className="py-10 text-center text-sm text-muted-foreground">
+              <p className="py-6 text-center text-sm text-muted-foreground">
                 {"No items added yet. Click \"Add Item\" to begin."}
               </p>
               {errors.lineItems && (
@@ -803,6 +893,72 @@ function CreateOrderPageContent() {
         </CardContent>
       </Card>
 
+      {/* Attachments — below Line Items */}
+      <Card className="border border-border bg-card shadow-none">
+        <CardHeader className="pb-3 pt-4 px-6">
+          <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            Attachments
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="w-full space-y-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_TYPES}
+            multiple
+            className="sr-only"
+            onChange={handleFileSelect}
+          />
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true) }}
+            onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false) }}
+            onDrop={handleDrop}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click() } }}
+            className={cn(
+              "flex w-full min-h-[100px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-4 text-center transition-colors",
+              isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/30 bg-muted/30 hover:border-muted-foreground/50 hover:bg-muted/50"
+            )}
+          >
+            <Upload className="mb-2 size-8 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">
+              {isDragging ? "Drop files here" : "Drag and drop PDF or Word files here, or click to browse"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">PDF or Word only, max 4MB per file</p>
+          </div>
+          {attachments.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Attached files</p>
+              <ul className="space-y-2">
+                {attachments.map((att) => (
+                  <li
+                    key={att.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm"
+                  >
+                    <span className="min-w-0 truncate font-medium text-foreground">{att.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{(att.size / 1024).toFixed(1)} KB</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={(e) => { e.stopPropagation(); removeAttachment(att.id) }}
+                    >
+                      <X className="size-3.5" />
+                      <span className="sr-only">Remove</span>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
+
       {/* Actions */}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" size="sm" onClick={() => router.push("/orders")}>
@@ -903,6 +1059,18 @@ function CreateOrderPageContent() {
               <p className="border-t border-border pt-4 text-sm text-muted-foreground">
                 Saving into DB coming in next version.
               </p>
+              <div className="flex justify-end pt-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setSummaryOrder(null)
+                    router.push("/orders")
+                  }}
+                >
+                  Go to Orders
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
