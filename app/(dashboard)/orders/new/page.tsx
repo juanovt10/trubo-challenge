@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -134,7 +134,7 @@ function recalcLineItemPricing(
   })
 }
 
-export default function CreateOrderPage() {
+function CreateOrderPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [selfPay, setSelfPay] = useState(false)
@@ -908,5 +908,13 @@ export default function CreateOrderPage() {
         </DialogContent>
       </Dialog>
     </form>
+  )
+}
+
+export default function CreateOrderPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
+      <CreateOrderPageContent />
+    </Suspense>
   )
 }
