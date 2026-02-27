@@ -267,8 +267,8 @@ export default function OrderDetailPage({
         <TabsContent value="overview" className="mt-4">
           {status === "Action Required" && rejectedReasonDisplay && (
             <Card className="mb-4 border-destructive/50 bg-destructive/5">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-destructive">Rejection reason</CardTitle>
+              <CardHeader className="pb-1.5">
+                <CardTitle className="text-destructive">Rejection reason</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-foreground">{rejectedReasonDisplay}</p>
@@ -277,8 +277,8 @@ export default function OrderDetailPage({
           )}
           <div className="grid grid-cols-2 gap-4">
             <Card className="border border-border bg-card shadow-none">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <CardHeader className="pb-1.5">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Patient
                 </CardTitle>
               </CardHeader>
@@ -299,8 +299,8 @@ export default function OrderDetailPage({
             </Card>
 
             <Card className="border border-border bg-card shadow-none">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <CardHeader className="pb-1.5">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Insurance
                 </CardTitle>
               </CardHeader>
@@ -321,8 +321,8 @@ export default function OrderDetailPage({
             </Card>
 
             <Card className="col-span-2 border border-border bg-card shadow-none">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <CardHeader className="pb-1.5">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Shipping
                 </CardTitle>
               </CardHeader>
@@ -344,7 +344,7 @@ export default function OrderDetailPage({
 
         <TabsContent value="line-items" className="mt-4">
           <Card className="border border-border bg-card shadow-none">
-            <CardContent className="p-0">
+            <CardContent className="px-4">
               {order.lineItems.length === 0 ? (
                 <p className="py-12 text-center text-sm text-muted-foreground">No line items</p>
               ) : (

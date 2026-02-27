@@ -367,9 +367,10 @@ export const roadmapItems = [
     title: "Intake & Pricing Foundation",
     active: true,
     items: [
-      "Order creation workflow",
-      "Product & fee schedule management",
-      "Line-item pricing with margin calculation",
+      "Structured order intake",
+      "Product catalog & fee schedule management",
+      "Margin visibility",
+      "Approval gating",
       "Basic document generation (Encounter, Invoice, POD)",
       "Status management (Draft, Needs Approval, Approved, Docs Ready)",
     ],
@@ -383,6 +384,7 @@ export const roadmapItems = [
       "Pricing parity validation across payers",
       "Fee schedule version management",
       "Batch pricing updates",
+      "Data integrity & validation",
     ],
   },
   {
@@ -394,6 +396,7 @@ export const roadmapItems = [
       "Role-based access controls",
       "Audit trail & activity logging",
       "Notification system",
+      "Operational reporting",
     ],
   },
   {
@@ -405,6 +408,7 @@ export const roadmapItems = [
       "Electronic prior authorization",
       "Inventory management integration",
       "Automated claim submission",
+      "Third-party API integrations",
     ],
   },
 ]

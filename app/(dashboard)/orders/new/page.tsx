@@ -551,8 +551,8 @@ function CreateOrderPageContent() {
 
       {/* Patient Information */}
       <Card className="border border-border bg-card py-4 shadow-none">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <CardHeader className="pb-1.5">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Patient Information
           </CardTitle>
         </CardHeader>
@@ -621,8 +621,8 @@ function CreateOrderPageContent() {
 
       {/* Insurance */}
       <Card className="border border-border bg-card py-4 shadow-none">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <CardHeader className="pb-1.5">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Insurance
           </CardTitle>
         </CardHeader>
@@ -697,8 +697,8 @@ function CreateOrderPageContent() {
 
       {/* Shipping */}
       <Card className="border border-border bg-card py-4 shadow-none">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <CardHeader className="pb-1.5">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Shipping
           </CardTitle>
         </CardHeader>
@@ -753,8 +753,8 @@ function CreateOrderPageContent() {
           errors.lineItems ? "border-red-500" : "border-border"
         )}
       >
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <CardHeader className="flex flex-row items-center justify-between pb-1.5">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Line Items
           </CardTitle>
           <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addLineItem}>
@@ -895,8 +895,8 @@ function CreateOrderPageContent() {
 
       {/* Attachments — below Line Items */}
       <Card className="border border-border bg-card shadow-none">
-        <CardHeader className="pb-3 pt-4 px-6">
-          <CardTitle className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <CardHeader className="pb-1.5 pt-4 px-6">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Attachments
           </CardTitle>
         </CardHeader>

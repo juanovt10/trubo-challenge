@@ -34,9 +34,9 @@ export default function RoadmapPage() {
                 item.active && "ring-1 ring-border"
               )}
             >
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-1.5">
                 <div className="flex items-center gap-3">
-                  <CardTitle className="text-sm font-medium text-foreground">
+                  <CardTitle className="text-foreground">
                     Sprint {item.sprint} &ndash; {item.title}
                   </CardTitle>
                   {item.active && (
